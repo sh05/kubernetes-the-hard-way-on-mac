@@ -1,0 +1,6 @@
+# aqua.yaml
+registries:
+- type: standard
+  ref: v4.81.0
+packages:
+  - name: hashicorp/terraform@1.6.2
