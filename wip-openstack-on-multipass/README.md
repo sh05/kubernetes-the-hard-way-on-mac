@@ -1,0 +1,3 @@
+WIP
+
+Multipassの1つのVM上にOpenstackクラスタを組んでKubernetes用のVMを作成する

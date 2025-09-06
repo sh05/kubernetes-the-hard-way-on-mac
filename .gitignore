@@ -29,7 +29,7 @@ id_rsa*
 id_ed25519*
 *.pub
 
-# Environment variables
+# jnvironment variables
 .env
 .env.local
 .env.*.local
@@ -89,3 +89,5 @@ yarn-error.log*
 *.dylib
 *.test
 coverage.txt
+
+.claude/settings.local.json

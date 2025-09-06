@@ -5,3 +5,4 @@ packages:
   - cpu-checker
 runcmd:
   - sudo snap install microstack --classic --beta
+  - sudo /snap/bin/microstack.init --auto --control

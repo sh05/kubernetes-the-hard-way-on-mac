@@ -1,0 +1,1 @@
+Kubernetesクラスタ用のVMをMultipassのみで作成する
