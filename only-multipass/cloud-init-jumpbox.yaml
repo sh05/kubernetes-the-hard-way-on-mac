@@ -1,0 +1,152 @@
+#cloud-config
+# Jumpbox configuration with inline common settings (no include dependency)
+
+package_update: true
+package_upgrade: true
+
+# Basic packages + jumpbox-specific tools
+packages:
+  - curl
+  - wget
+  - vim
+  - htop
+  - net-tools
+  - apt-transport-https
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - openssl    # jumpbox-specific
+  - git        # jumpbox-specific
+
+# SSH root login configuration
+ssh_pwauth: true
+disable_root: false
+write_files:
+  - path: /etc/ssh/sshd_config.d/50-root-login.conf
+    content: |
+      PermitRootLogin yes
+    owner: root:root
+    permissions: '0644'
+  - path: /root/setup-k8s-hard-way.sh
+    content: |
+      #!/bin/bash
+      set -e
+      
+      LOG_FILE="/root/setup.log"
+      COMPLETE_FILE="/root/setup-complete.txt"
+      
+      log() {
+          echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+      }
+      
+      log "Starting Kubernetes The Hard Way setup"
+      
+      # Clone repository
+      log "Cloning kubernetes-the-hard-way repository..."
+      if git clone --depth 1 https://github.com/kelseyhightower/kubernetes-the-hard-way.git /root/kubernetes-the-hard-way; then
+          log "Repository cloned successfully"
+      else
+          log "ERROR: Git clone failed"
+          exit 1
+      fi
+      
+      cd /root/kubernetes-the-hard-way
+      
+      # Detect architecture
+      ARCH=$(dpkg --print-architecture)
+      log "Architecture detected: $ARCH"
+      
+      # Create directory structure
+      mkdir -p downloads/{client,cni-plugins,controller,worker}
+      log "Directory structure created"
+      
+      # Download binaries
+      log "Downloading Kubernetes binaries..."
+      if wget -q --show-progress --https-only --timestamping -P downloads -i downloads-${ARCH}.txt; then
+          log "Downloads completed successfully"
+      else
+          log "WARNING: Some downloads may have failed, continuing..."
+      fi
+      
+      # Extract binaries
+      log "Extracting binaries..."
+      
+      # Extract crictl
+      if [ -f "downloads/crictl-v1.32.0-linux-${ARCH}.tar.gz" ]; then
+          tar -xf downloads/crictl-v1.32.0-linux-${ARCH}.tar.gz -C downloads/worker/ && log "crictl extracted"
+      fi
+      
+      # Extract containerd
+      if [ -f "downloads/containerd-2.1.0-beta.0-linux-${ARCH}.tar.gz" ]; then
+          tar -xf downloads/containerd-2.1.0-beta.0-linux-${ARCH}.tar.gz --strip-components 1 -C downloads/worker/ && log "containerd extracted"
+      fi
+      
+      # Extract CNI plugins
+      if [ -f "downloads/cni-plugins-linux-${ARCH}-v1.6.2.tgz" ]; then
+          tar -xf downloads/cni-plugins-linux-${ARCH}-v1.6.2.tgz -C downloads/cni-plugins/ && log "CNI plugins extracted"
+      fi
+      
+      # Extract etcd
+      if [ -f "downloads/etcd-v3.6.0-rc.3-linux-${ARCH}.tar.gz" ]; then
+          tar -xf downloads/etcd-v3.6.0-rc.3-linux-${ARCH}.tar.gz -C downloads/ --strip-components 1 etcd-v3.6.0-rc.3-linux-${ARCH}/etcdctl etcd-v3.6.0-rc.3-linux-${ARCH}/etcd && log "etcd extracted"
+      fi
+      
+      # Organize binaries
+      log "Organizing binaries..."
+      [ -f downloads/etcdctl ] && mv downloads/etcdctl downloads/client/ 2>/dev/null
+      [ -f downloads/kubectl ] && mv downloads/kubectl downloads/client/ 2>/dev/null
+      [ -f downloads/etcd ] && mv downloads/etcd downloads/controller/ 2>/dev/null
+      [ -f downloads/kube-apiserver ] && mv downloads/kube-apiserver downloads/controller/ 2>/dev/null
+      [ -f downloads/kube-controller-manager ] && mv downloads/kube-controller-manager downloads/controller/ 2>/dev/null
+      [ -f downloads/kube-scheduler ] && mv downloads/kube-scheduler downloads/controller/ 2>/dev/null
+      [ -f downloads/kubelet ] && mv downloads/kubelet downloads/worker/ 2>/dev/null
+      [ -f downloads/kube-proxy ] && mv downloads/kube-proxy downloads/worker/ 2>/dev/null
+      [ -f downloads/runc.${ARCH} ] && mv downloads/runc.${ARCH} downloads/worker/runc 2>/dev/null
+      
+      # Clean up downloaded archives
+      rm -f downloads/*.gz downloads/*.tar.gz downloads/*.tgz
+      
+      # Set permissions
+      chmod +x downloads/client/* downloads/controller/* downloads/worker/* downloads/cni-plugins/* 2>/dev/null || true
+      
+      # Install kubectl system-wide
+      if [ -f downloads/client/kubectl ]; then
+          cp downloads/client/kubectl /usr/local/bin/
+          chmod +x /usr/local/bin/kubectl
+          log "kubectl installed system-wide"
+      fi
+      
+      # Create completion report
+      log "Creating setup completion report..."
+      cat > "$COMPLETE_FILE" << EOF
+      Kubernetes The Hard Way jumpbox setup completed at $(date)
+      Working directory: /root/kubernetes-the-hard-way
+      
+      Binaries organized in downloads/ subdirectories:
+        - client/: kubectl, etcdctl
+        - controller/: etcd, kube-apiserver, kube-controller-manager, kube-scheduler  
+        - worker/: kubelet, kube-proxy, crictl, containerd, runc
+        - cni-plugins/: CNI network plugins
+      
+      kubectl version:
+      EOF
+      
+      if command -v kubectl >/dev/null 2>&1; then
+          kubectl version --client >> "$COMPLETE_FILE" 2>&1
+      else
+          echo "kubectl not found in PATH" >> "$COMPLETE_FILE"
+      fi
+      
+      log "Setup completed successfully!"
+    owner: root:root
+    permissions: '0755'
+
+users:
+  - name: root
+    lock_passwd: false
+    passwd: "$6$saltsalt$bAY90rAsHhyx.bxmKP9FE5UF4jP1iWgjV0ltM6ZJxfYkiIaCExjBZIbfmqmZEWoR65aM.1nFvG7fF3gYOjHpM."  # password: "root"
+
+# Kubernetes The Hard Way automated setup
+runcmd:
+  - systemctl restart sshd
+  - /root/setup-k8s-hard-way.sh

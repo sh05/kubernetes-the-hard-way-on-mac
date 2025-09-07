@@ -91,3 +91,4 @@ yarn-error.log*
 coverage.txt
 
 .claude/settings.local.json
+.*

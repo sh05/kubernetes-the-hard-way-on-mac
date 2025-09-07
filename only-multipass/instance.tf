@@ -6,6 +6,6 @@ resource "multipass_instance" "instances" {
   cpu            = each.value.cpu
   memory         = each.value.memory
   disk           = each.value.disk
-  cloud_init     = var.cloud_init_file
+  cloud_init     = each.value.cloud_init
   launch_timeout = var.launch_timeout
 }

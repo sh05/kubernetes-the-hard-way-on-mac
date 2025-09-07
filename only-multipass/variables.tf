@@ -1,25 +1,35 @@
 variable "instances" {
   description = "Map of instance configurations"
   type = map(object({
-    cpu    = string
-    memory = string
-    disk   = string
+    cpu        = string
+    memory     = string
+    disk       = string
+    cloud_init = string
   }))
   default = {
+    jumpbox = {
+      cpu        = "1"
+      memory     = "512MB"
+      disk       = "10G"
+      cloud_init = "./cloud-init-jumpbox.yaml"
+    }
     server = {
-      cpu    = "1"
-      memory = "2GB"
-      disk   = "20G"
+      cpu        = "1"
+      memory     = "2GB"
+      disk       = "20G"
+      cloud_init = "./cloud-init-common.yaml"
     }
     node-0 = {
-      cpu    = "1"
-      memory = "2GB"
-      disk   = "20G"
+      cpu        = "1"
+      memory     = "2GB"
+      disk       = "20G"
+      cloud_init = "./cloud-init-common.yaml"
     }
     node-1 = {
-      cpu    = "1"
-      memory = "2GB"
-      disk   = "20G"
+      cpu        = "1"
+      memory     = "2GB"
+      disk       = "20G"
+      cloud_init = "./cloud-init-common.yaml"
     }
   }
 }
@@ -35,10 +45,3 @@ variable "launch_timeout" {
   type        = string
   default     = "30m"
 }
-
-variable "cloud_init_file" {
-  description = "Path to cloud-init configuration file"
-  type        = string
-  default     = "./cloud-init.yaml"
-}
-
